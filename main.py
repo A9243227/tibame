@@ -27,10 +27,10 @@ service = Service("/usr/bin/chromedriver")
 driver = webdriver.Chrome(service=service, options=chrome_options)
 driver.get("https://www.trec.org.tw/certification_trade_situation/direct_supply")
 
-time.sleep(10)
+time.sleep(8)
 
 page = 1 
-# max_page = 1# 測試先爬 1 頁（10 筆）
+max_page = 1 # 測試先爬 1 頁（10 筆）
 
 # 開啟 CSV 檔案準備寫入 (加上 utf-8-sig 讓 Excel 開啟不亂碼)
 csv_file = open('data.csv', mode='w', newline='', encoding='utf-8-sig')
@@ -138,7 +138,7 @@ while True:
         next_button.click()
         print("\n=> 點擊下一頁，等待資料載入...", flush=True)
         page += 1
-        time.sleep(5)  # 等待下一頁載入
+        time.sleep(3)  # 等待下一頁載入
         
     except Exception as e:
         print("\n找不到下一頁按鈕或發生錯誤，結束迴圈。", flush=True)
