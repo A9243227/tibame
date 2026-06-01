@@ -2,7 +2,7 @@
 FROM python:3.13-slim
 
 # 2. 設定容器內的工作目錄
-WORKDIR /app
+WORKDIR /app/tibame
 
 # 3. 安裝系統必備套件與瀏覽器
 # 這是最重要的步驟：安裝 Chromium 瀏覽器與對應的驅動程式 (Chromium Driver)
