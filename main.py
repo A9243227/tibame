@@ -4,6 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+from google.cloud import storage
 import time
 import csv
 import io
@@ -38,7 +39,7 @@ csv_writer = csv.writer(csv_file)
 csv_writer.writerow(['公司', '售電業者', '出售單位', '發電設備', '購買者', '成交紀錄'])
 
 while True:
-    print(f"\n================= 正在爬取第 {page} 頁 =================")
+    print(f"\n================= 正在爬取第 {page} 頁 =================", flush=True)
     
     tags = driver.find_elements(By.CLASS_NAME, "sorting_1")
     detail_buttons = driver.find_elements(By.XPATH, '//button[contains(., "詳情")]')
@@ -47,7 +48,7 @@ while True:
     print("詳情按鈕數量：", len(detail_buttons))
     
     for i in range(len(detail_buttons)):
-        print(f"\n========== 第 {page} 頁 - 第 {i + 1} 筆 ==========")
+        print(f"\n========== 第 {page} 頁 - 第 {i + 1} 筆 ==========", flush=True)
         tag_text = tags[i].text
         print(tag_text)
         
@@ -71,7 +72,7 @@ while True:
         
         detail_text = modal.text.replace("\n關閉", "").strip()
         
-        print("===== 詳細資訊 =====")
+        print("===== 詳細資訊 =====", flush=True)
         print(detail_text)
         
         # 進行字串解析
@@ -131,17 +132,38 @@ while True:
         # 檢查是否無法點擊 (例如 Datatables 的 disabled class)
         button_class = next_button.get_attribute("class") or ""
         if "disabled" in button_class:
-            print("\n已經到達最後一頁。")
+            print("\n已經到達最後一頁。", flush=True)
             break
             
         next_button.click()
-        print("\n=> 點擊下一頁，等待資料載入...")
+        print("\n=> 點擊下一頁，等待資料載入...", flush=True)
         page += 1
         time.sleep(5)  # 等待下一頁載入
         
     except Exception as e:
-        print("\n找不到下一頁按鈕或發生錯誤，結束迴圈。")
+        print("\n找不到下一頁按鈕或發生錯誤，結束迴圈。", flush=True)
         break
 
-print("爬取完成！")
+print("爬取完成！", flush=True)
 csv_file.close()
+
+# ========== 新增：將檔案上傳至 Google Cloud Storage ==========
+try:
+    print("準備將 data.csv 上傳至 Cloud Storage...", flush=True)
+    # 初始化 GCS 客戶端 (Cloud Run 環境會自動取得權限，免填金鑰)
+    storage_client = storage.Client()
+    
+    # 請將 'your-bucket-name' 替換成您在 GCP 上建立的儲存桶名稱
+    bucket_name = 'tibame-bronze'
+    bucket = storage_client.bucket(bucket_name)
+    
+    # 設定上傳到雲端後的檔案名稱 (建議可以加上日期區隔，例如 data_20260601.csv)
+    destination_blob_name = 'raw_data/trec_direct_supply.csv' 
+    blob = bucket.blob(destination_blob_name)
+    
+    # 執行上傳
+    blob.upload_from_filename('data.csv')
+    
+    print(f"成功！檔案已上傳至 gs://{bucket_name}/{destination_blob_name}", flush=True)
+except Exception as e:
+    print(f"上傳至 GCS 失敗: {e}", flush=True)
