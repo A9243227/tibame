@@ -2,11 +2,28 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 import time
 import csv
 import io
 
-driver = webdriver.Chrome()
+# 1. 建立 Chrome 設定物件
+chrome_options = Options()
+
+# 2. 加入容器環境必備的啟動參數
+chrome_options.add_argument("--headless=new")         # 開啟無頭模式 (不開啟實體視窗，這在雲端環境是必須的)
+chrome_options.add_argument("--no-sandbox")           # 繞過作業系統的沙盒環境 (Docker 必備，否則沒有權限執行)
+chrome_options.add_argument("--disable-dev-shm-usage") # 避免容器內共享記憶體不足導致崩潰
+chrome_options.add_argument("--disable-gpu")          # 關閉 GPU 加速
+
+# 3. 指定 Chromium 執行檔的絕對路徑 (因為我們在 Docker 裡安裝的是 chromium)
+chrome_options.binary_location = "/usr/bin/chromium"
+
+# 4. 初始化 webdriver 並把設定帶入 (替換掉您原本第 9 行的程式碼)
+# 使用 Service 明確指定驅動程式位置，確保 Selenium 找得到
+service = Service("/usr/bin/chromedriver")
+driver = webdriver.Chrome(service=service, options=chrome_options)
 driver.get("https://www.trec.org.tw/certification_trade_situation/direct_supply")
 
 time.sleep(10)
