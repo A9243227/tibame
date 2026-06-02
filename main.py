@@ -30,7 +30,7 @@ driver.get("https://www.trec.org.tw/certification_trade_situation/direct_supply"
 time.sleep(8)
 
 page = 1 
-max_page = 1 # 測試先爬 1 頁（10 筆）
+max_pages = 1 # 測試先爬 1 頁（10 筆）
 
 # 開啟 CSV 檔案準備寫入 (加上 utf-8-sig 讓 Excel 開啟不亂碼)
 csv_file = open('data.csv', mode='w', newline='', encoding='utf-8-sig')
@@ -121,9 +121,9 @@ while True:
         )
         time.sleep(1)
         
-    # if page >= max_pages:
-    #     print(f"\n已經爬取 {max_pages} 頁，結束程式。")
-    #     break
+    if page >= max_pages:
+        print(f"\n已經爬取 {max_pages} 頁，結束程式。")
+        break
         
     try:
         # 嘗試尋找「下一頁」按鈕，通常帶有 next 或是 下一頁 的文字
