@@ -162,7 +162,7 @@ try:
     blob = bucket.blob(destination_blob_name)
     
     # 執行上傳
-    blob.upload_from_filename('data.csv')
+    blob.upload_from_filename('data.csv') # 記得改名字
     
     print(f"成功！檔案已上傳至 gs://{bucket_name}/{destination_blob_name}", flush=True)
 except Exception as e:
