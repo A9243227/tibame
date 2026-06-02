@@ -39,6 +39,31 @@ csv_writer = csv.writer(csv_file)
 csv_writer.writerow(['公司', '售電業者', '出售單位', '發電設備', '購買者', '成交紀錄'])
 
 while True:
+    # ================= 新增：定期重啟瀏覽器機制 =================
+    # 假設設定每 100 頁重啟一次 (page > 1 是為了避免第 1 頁就觸發)
+    if page > 1 and (page - 1) % 100 == 0:
+        print(f"\n[記憶體釋放] 已完成 {page-1} 頁，正在重啟瀏覽器以釋放記憶體...", flush=True)
+        driver.quit()  # 關閉舊的瀏覽器，記憶體瞬間清空
+        
+        # 重新啟動新的瀏覽器
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        driver.get("https://www.trec.org.tw/certification_trade_situation/direct_supply")
+        time.sleep(10) # 等待網站初始載入
+        
+        # 【關鍵】快轉回我們該爬的頁數
+        print(f"正在快轉回第 {page} 頁，這會需要一點時間，請稍候...", flush=True)
+        for _ in range(page - 1):
+            try:
+                next_btn = driver.find_element(By.XPATH, '//*[contains(@class, "next")] | //a[contains(., "下一頁") or contains(., "Next")]')
+                driver.execute_script("arguments[0].click();", next_btn)
+                time.sleep(1) # 快速點擊，但給 DOM 一點更新的時間
+            except Exception as e:
+                print(f"快轉時找不到下一頁按鈕: {e}", flush=True)
+                break
+                
+        print(f"快轉完成！準備繼續爬取第 {page} 頁。", flush=True)
+        time.sleep(2) # 確保快轉後的頁面元素已完全載入
+    # ============================================================
     print(f"\n================= 正在爬取第 {page} 頁 =================", flush=True)
     
     tags = driver.find_elements(By.CLASS_NAME, "sorting_1")
