@@ -63,6 +63,33 @@ def main():
         # 4. 開始爬取資料迴圈
         # =====================================================================
         while True:
+            # ================= 定期重啟瀏覽器機制 (避免記憶體不足) =================
+            # 假設設定每 100 頁重啟一次 (page > 1 是為了避免第 1 頁就觸發)
+            if page > 1 and (page - 1) % 100 == 0:
+                print(f"\n[記憶體釋放] 已完成 {page-1} 頁，正在重啟瀏覽器以釋放記憶體...", flush=True)
+                driver.quit()  # 關閉舊的瀏覽器，記憶體瞬間清空
+                
+                # 重新啟動新的瀏覽器
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+                driver.get(target_url)
+                time.sleep(10) # 等待網站初始載入
+                
+                # 【關鍵】快轉回我們該爬的頁數
+                print(f"正在快轉回第 {page} 頁，這會需要一點時間，請稍候...", flush=True)
+                for _ in range(page - 1):
+                    # TODO: 如果你的下一頁按鈕不是這個 XPATH，請記得連同這邊一起修改
+                    try:
+                        next_btn = driver.find_element(By.XPATH, '//*[contains(@class, "next")] | //a[contains(., "下一頁") or contains(., "Next")]')
+                        driver.execute_script("arguments[0].click();", next_btn)
+                        time.sleep(1) # 快速點擊，但給 DOM 一點更新的時間
+                    except Exception as e:
+                        print(f"快轉時找不到下一頁按鈕: {e}", flush=True)
+                        break
+                        
+                print(f"快轉完成！準備繼續爬取第 {page} 頁。", flush=True)
+                time.sleep(2) # 確保快轉後的頁面元素已完全載入
+            # =====================================================================
+            
             print(f"\n================= 正在爬取第 {page} 頁 =================", flush=True)
             
             # TODO: 撰寫你的爬蟲解析邏輯
