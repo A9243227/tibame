@@ -21,4 +21,4 @@ COPY . .
 
 # 6. 設定啟動指令
 # 由於目前環境實際的執行檔位於 tibame/main.py，在此替換為對應路徑
-CMD ["python", "main.py"]
+CMD ["python", "--version"]
