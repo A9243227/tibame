@@ -20,9 +20,9 @@ jobs:
 
     # 1. 登入 GCP 驗證（需要先在 GitHub 設定憑證 Secret）
     - name: Google Auth
-      uses: google-github-actions/auth@v1
+      uses: google-github-actions/auth@v2
       with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
     # 2. 設定 GCP CLI 工具
     - name: Set up Cloud SDK
