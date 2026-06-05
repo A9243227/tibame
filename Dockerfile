@@ -2,7 +2,7 @@
 FROM python:3.13-slim
 
 # 2. 設定容器內的工作目錄
-WORKDIR /app/crawler
+WORKDIR /app
 
 # 3. 安裝系統必備套件與瀏覽器
 # 這是最重要的步驟：安裝 Chromium 瀏覽器與對應的驅動程式 (Chromium Driver)
@@ -19,6 +19,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 5. 將你所有的程式碼複製到容器內
 COPY . .
 
-# 6. 設定啟動指令
+# 6. 切換到 crawler 資料夾作為執行目錄，因為爬蟲程式都在這
+WORKDIR /app/crawler
+
+# 7. 設定啟動指令
 # 使用 main.py 來分配 Cloud Run Jobs 任務
 CMD ["python", "main.py"]
