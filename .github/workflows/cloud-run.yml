@@ -5,6 +5,11 @@ on:
     branches:
       - main  # 當程式碼推送到 main 分支時觸發
 
+# 加入 Workload Identity Federation 必須的權限設定
+permissions:
+  contents: 'read'
+  id-token: 'write' # 這是必要權限！
+
 env:
   PROJECT_ID: tibametopics            # 你的 GCP 專案 ID
   GAR_LOCATION: asia-east1             # Artifact Registry 的區域（台灣為 asia-east1）
@@ -18,11 +23,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # 1. 登入 GCP 驗證（需要先在 GitHub 設定憑證 Secret）
-    - name: Google Auth
-      uses: google-github-actions/auth@v1
+    # 1. 登入 GCP 驗證 (使用 Workload Identity Federation)
+    - name: Google Auth via Workload Identity Federation
+      uses: google-github-actions/auth@v2
       with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        # 這裡引用您剛剛在 GitHub 設定的變數/秘密
+        workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
     # 2. 設定 GCP CLI 工具
     - name: Set up Cloud SDK
