@@ -13,18 +13,18 @@
    - 範例：`git commit -m "[新增] 會員登入 API 實作"`
 4. **小步提交 (Atomic Commits)**：不要將大量無關的更改混在同一個 commit 中，盡量保持一個 commit 只做一件事情，這對未來追蹤問題非常有幫助。
 5. **謹慎處理衝突 (Merge Conflict)**：遇到衝突時，請仔細確認雙方的更改。如果不確定這段程式碼的邏輯，請務必與原作者討論，**絕對不要隨意覆蓋別人的程式碼**。
+6. **標準開發與合併流程**：完成功能或者修改某片段後，請先將程式碼 push 到自己的分支。確定修改完成並經過測試後，再推送到 `develop` 分支。後續的 code review 以及執行 branch merge 會再透過 `develop` 合併到 `main` 裡面並進行升版。
 
 ---
 
-## 🔄 基本工作流程（直接在主線開發）
+## 🔄 基本工作流程（直接在開發分支開發）
 
-如果您們目前的專案規模較小，允許直接在主分支（`main` 或 `master`）上開發，請參考以下步驟：
+如果您們目前的專案規模較小，允許直接在開發分支（`develop`）上開發，請參考以下步驟：
 
 ### 1. 拉取最新程式碼 (Pull)
 ```bash
 # 開發前先拉取遠端最新進度
-git pull origin main
-# 註: 如果主分支名稱是 master，請將 main 替換為 master
+git pull origin develop
 ```
 
 ### 2. 查看狀態與加入暫存區 (Add)
@@ -48,10 +48,10 @@ git commit -m "[修改類型] 您的修改詳細說明"
 ### 4. 推送到遠端 (Push)
 ```bash
 # 在推送前，建議再拉取一次以防有人在你開發時推了新程式碼
-git pull origin main
+git pull origin develop
 
 # 將本地提交推送到遠端伺服器
-git push origin main
+git push origin develop
 ```
 
 ---
@@ -62,9 +62,9 @@ git push origin main
 
 ### 1. 建立並切換分支 (Branching)
 ```bash
-# 先切回主分支並確保是最新的
-git checkout main
-git pull origin main
+# 先切回 develop 分支並確保是最新的
+git checkout develop
+git pull origin develop
 
 # 建立並同時切換到新分支 (-b 代表 branch)
 git checkout -b feature/your-feature-name
@@ -87,18 +87,18 @@ git push -u origin feature/your-feature-name
 git push
 ```
 
-### 4. 合併分支 (Merge)
-當您的分支開發完成，且測試確認沒問題後，就可以將其合併回主分支。
-*(註：在實際工作中，這步通常會透過 GitHub/GitLab 上的 Pull Request / Merge Request 來進行，由其他人 Code Review 後合併。若在本地端合併則按照以下詳細步驟：)*
+### 4. 合併分支 (Merge to Develop)
+當您的分支開發完成，且測試確認沒問題後，就可以將其合併回 `develop` 分支。
+*(註：在實際工作中，這步通常會透過 GitHub/GitLab 上的 Pull Request / Merge Request 來進行。若在本地端合併則按照以下詳細步驟：)*
 
 ```bash
-# 1. 先切換回主分支
-git checkout main
+# 1. 先切換回 develop 分支
+git checkout develop
 
-# 2. 確保主分支是最新的 (非常重要！)
-git pull origin main
+# 2. 確保 develop 分支是最新的 (非常重要！)
+git pull origin develop
 
-# 3. 將您的開發分支合併到主分支
+# 3. 將您的開發分支合併到 develop
 git merge feature/your-feature-name
 ```
 
@@ -113,16 +113,32 @@ git merge feature/your-feature-name
    ```
 4. 完成合併的 Commit：
    ```bash
-   git commit -m "Merge branch 'feature/your-feature-name' into main"
+   git commit -m "Merge branch 'feature/your-feature-name' into develop"
    ```
 
 **完成合併後推送：**
 ```bash
-# 4. 將合併後的主分支推送到遠端
-git push origin main
+# 4. 將合併後的 develop 分支推送到遠端
+git push origin develop
 ```
 
-### 5. 刪除已完成的分支 (可選)
+### 5. 發布新版本 (Merge to Main)
+當 `develop` 分支上的功能都已準備就緒，經過 Code Review 並且確定要發布時，由負責人將 `develop` 合併至 `main`：
+
+```bash
+# 1. 切換至 main 分支並確保最新
+git checkout main
+git pull origin main
+
+# 2. 將 develop 合併到 main
+git merge develop
+
+# 3. 推送到遠端
+git push origin main
+```
+*(發布後通常還會使用 `git tag` 標記版本號，例如 `git tag v1.0.0`)*
+
+### 6. 刪除已完成的分支 (可選)
 為了保持分支列表乾淨，合併完畢後可以刪除該分支：
 ```bash
 # 刪除本地分支
