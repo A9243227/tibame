@@ -19,6 +19,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 5. 將你所有的程式碼複製到容器內
 COPY . .
 
-# 6. 設定啟動指令
-# 由於目前環境實際的執行檔位於 tibame/main.py，在此替換為對應路徑
-CMD ["python", "--version"]
+# 6. 切換到 crawler 資料夾作為執行目錄，因為爬蟲程式都在這
+WORKDIR /app/crawler
+
+# 7. 設定啟動指令
+# 使用 main.py 來分配 Cloud Run Jobs 任務
+CMD ["python", "main.py"]
