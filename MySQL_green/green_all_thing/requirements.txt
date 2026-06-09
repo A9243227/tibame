@@ -1,0 +1,5 @@
+cryptography
+pandas
+plotly
+pymysql
+python-dotenv
