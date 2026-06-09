@@ -8,3 +8,12 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Output files
+green_all_thing/output/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
