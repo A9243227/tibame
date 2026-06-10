@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # 6. 切換到 crawler 資料夾作為執行目錄，因為爬蟲程式都在這
-WORKDIR /app/crawler
+WORKDIR /app/src/crawler
 
 # 7. 設定啟動指令
 # 使用 main.py 來分配 Cloud Run Jobs 任務
