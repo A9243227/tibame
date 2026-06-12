@@ -80,11 +80,11 @@ TARGET_URL = "https://www.trec.org.tw/certification_trade_situation"
 # 之後年度 CSV 會長這樣：
 # 自用發電設備憑證成交紀錄_2026.csv
 # 自用發電設備憑證成交紀錄_2025.csv
-CSV_PREFIX = "自用發電設備憑證成交紀錄"
+CSV_PREFIX = "trec_self_generation_transaction_raw"
 
 # 合併後的總表檔名
 # 這個檔案每次執行都會重新合併產生
-ALL_CSV_FILE = f"{CSV_PREFIX}_all.csv"
+ALL_CSV_FILE = f"{CSV_PREFIX}.csv"
 
 # CSV 欄位名稱
 # 這些欄位會出現在每個年度 CSV 和 all.csv
@@ -300,8 +300,14 @@ def upload_csv_files_to_gcs(storage_client):
 
     bucket = storage_client.bucket(GCS_BUCKET)
 
-    # 找出本地暫存資料夾裡所有 CSV
+    # 找出本地暫存資料夾裡所有年度 CSV
     csv_files = glob.glob(os.path.join(LOCAL_WORKDIR, f"{CSV_PREFIX}_*.csv"))
+
+    # 加入合併後的總表 CSV
+    all_csv_path = os.path.join(LOCAL_WORKDIR, ALL_CSV_FILE)
+
+    if os.path.exists(all_csv_path):
+        csv_files.append(all_csv_path)
 
     if not csv_files:
         print("找不到任何 CSV，沒有檔案可上傳")
