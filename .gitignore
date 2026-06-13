@@ -8,3 +8,16 @@ wheels/
 
 # Virtual environments
 .venv
+<<<<<<< HEAD
+venv/
+
+# Environment variables
+.env
+.env.*
+
+# Data files
+Data/*.csv
+data/*.csv
+=======
+data
+>>>>>>> origin/martin

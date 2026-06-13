@@ -77,7 +77,7 @@ def wait_table_loaded():
             for row in d.find_elements(By.CSS_SELECTOR, "tbody tr")
         )
     )
-    time.sleep(1)
+    time.sleep(0.8)
 
 def select_year(year):
     print(f"\n==============================\n正在切換至年份： {year}\n==============================")
@@ -85,7 +85,7 @@ def select_year(year):
     try:
         year_btn = wait.until(EC.element_to_be_clickable((By.XPATH, f"//span[contains(text(), '{year}') or text()='{year}']")))
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", year_btn)
-        time.sleep(1)
+        time.sleep(0.5)
         year_btn.click()
     except Exception:
         year_elements = driver.find_elements(By.XPATH, f"//*[text()='{year}']")
@@ -133,12 +133,12 @@ def parse_current_page(page):
             try:
                 detail_btn = row.find_element(By.CSS_SELECTOR, "button.ui.green.button, a.ui.green.button")
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", detail_btn)
-                time.sleep(1)
+                time.sleep(0.1)
                 driver.execute_script("arguments[0].click();", detail_btn)
                 
                 modal_locator = (By.CSS_SELECTOR, ".ui.modal.active, .modal.active, [class*='modal'][class*='active']")
                 wait.until(EC.presence_of_element_located(modal_locator))
-                time.sleep(1)
+                time.sleep(0.6)
 
                 modal_element = driver.find_element(*modal_locator)
                 modal_text = modal_element.text
@@ -166,7 +166,7 @@ def parse_current_page(page):
                     except: pass
                 
                 if not closed: driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
-                time.sleep(1) 
+                time.sleep(0.4) 
             except Exception as detail_error:
                 print(f" └─ 提示：第 {i+1} 列詳情彈窗處理異常，已執行重置機制。")
                 try: driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE); time.sleep(0.5)

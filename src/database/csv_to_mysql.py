@@ -1,13 +1,20 @@
 import pandas as pd
 import uuid
 import pymysql
+import os
+from dotenv import load_dotenv
+
+# 載入環境變數
+load_dotenv()
 
 # =========================
 # 讀取 CSV 檔案
 # =========================
 # encoding="utf-8" 表示使用 UTF-8 編碼讀取
+csv_path = os.path.join("data", "trec_direct_supply_mysql.csv")
+# 若檔案不存在請自行確認路徑
 df = pd.read_csv(
-    "trec_direct_supply_mysql.csv",
+    csv_path,
     encoding="utf-8"
 )
 
@@ -15,11 +22,11 @@ df = pd.read_csv(
 # 建立 MySQL 連線
 # =========================
 conn = pymysql.connect(
-    host="localhost",          # MySQL 主機位置
-    user="root",               # MySQL 帳號
-    password="your_password",  # MySQL 密碼
-    database="Tibame_G1",      # 資料庫名稱
-    charset="utf8mb4"          # 支援中文
+    host=os.getenv("DB_HOST", "localhost"),
+    user=os.getenv("DB_USER", "root"),
+    password=os.getenv("DB_PASSWORD", "your_password"),
+    database=os.getenv("DB_NAME", "Tibame_G1"),
+    charset="utf8mb4"
 )
 
 # 建立 Cursor 物件
