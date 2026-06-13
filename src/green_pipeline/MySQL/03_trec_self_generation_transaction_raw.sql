@@ -1,0 +1,23 @@
+-- ============================================================
+-- 資料表名稱：trec_self_generation_transaction_raw
+-- 中文名稱：T-REC 自用發電設備憑證成交紀錄原始資料表
+-- 資料來源：T-REC 官網 - 自用發電設備憑證成交紀錄
+-- 用途：儲存從 T-REC 網站抓取之自用發電設備憑證成交原始資料，保留資料原始樣貌，
+-- 作為後續資料清洗、正規化與分析使用。
+-- 主鍵：raw_id：使用 MySQL AUTO_INCREMENT 流水號
+-- 建立日期：2026-06-11
+-- ============================================================
+
+CREATE TABLE trec_self_generation_transaction_raw (
+    raw_id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'MySQL 自動流水號，每筆原始資料唯一識別碼',
+    -- ============================================================
+    seller VARCHAR(32) COMMENT '出售單位',
+    facility_name VARCHAR(64) COMMENT '發電設備',
+    buyer VARCHAR(32) COMMENT '購買者',
+    energy_type VARCHAR(8) COMMENT '能源類型',
+    transfer_mwh VARCHAR(20) COMMENT '移轉量(MWh)',
+    certificate_year VARCHAR(8) COMMENT '憑證發放年份',
+    transfer_date VARCHAR(16) COMMENT '移轉日期',
+    -- ============================================================
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '資料建立時間'
+) COMMENT='T-REC 自用發電設備憑證成交紀錄原始資料表';

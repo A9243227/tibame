@@ -7,17 +7,21 @@ wheels/
 *.egg-info
 
 # Virtual environments
-.venv
-<<<<<<< HEAD
+.venv/
 venv/
 
 # Environment variables
 .env
 .env.*
 
+# OS files
+.DS_Store
+
 # Data files
 Data/*.csv
 data/*.csv
-=======
-data
->>>>>>> origin/martin
+data/
+
+# Generated outputs
+output/
+MySQL_green/
