@@ -18,7 +18,7 @@ from google.cloud import storage
 # =========================
 
 url = "https://www.trec.org.tw/certification"
-years_to_crawl = ["2026"]
+years_to_crawl = [str(year) for year in range(2026, 2016, -1)]
 all_csv_file = "已發放憑證紀錄_all.csv"
 
 # ☁️ 雲端儲存桶與資料夾設定
