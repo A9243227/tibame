@@ -266,7 +266,6 @@ class DataManager:
             blob = bucket.blob(gcs_path)
             blob.upload_from_filename(local_file_name)
             print(f"☁️ 成功上傳 {local_file_name} 至 GCS: gs://{self.bucket_name}/{gcs_path}", flush=True)
-            print(f"本地測試模式: 略過上傳 {local_file_name} 至 GCS", flush=True)
         except Exception as e:
             print(f"❌ 雲端上傳失敗: {e}", flush=True)
 
@@ -275,7 +274,7 @@ def main():
     years_to_crawl = [str(year) for year in range(2026, 2016, -1)]
     all_csv_file = "已發放憑證紀錄_all.csv"
     
-    crawler = TRECCrawler(headless=False)
+    crawler = TRECCrawler(headless=True)
     data_manager = DataManager(fieldnames=crawler.fieldnames)
 
     try:
