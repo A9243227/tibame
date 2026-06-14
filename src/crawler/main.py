@@ -6,8 +6,8 @@ def main():
     # 只有具備無頭模式與 GCS 上傳邏輯的爬蟲
     scripts = [
         "Applied_REC_cloudrun.py",
-        "cloud_run_auto_self_use.py",
-        "test.py"
+        # "cloud_run_auto_self_use.py",
+        # "test.py"
     ]
 
     # Cloud Run Jobs 會自動傳入 CLOUD_RUN_TASK_INDEX 環境變數
