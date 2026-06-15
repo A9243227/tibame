@@ -210,6 +210,10 @@ class TRECCrawler:
             next_button = next_buttons[0]
             if "disabled" in (next_button.get_attribute("class") or ""): return False
 
+            # 取得當前的舊表格列，用來等待它從 DOM 被移除 (staleness)
+            old_rows = self.driver.find_elements(By.CSS_SELECTOR, "tbody tr")
+            old_first_row = old_rows[0] if old_rows else None
+
             page_input = self.driver.find_element(By.CSS_SELECTOR, "input.paginate_input")
             old_page_value = page_input.get_attribute("value")
             
@@ -219,9 +223,17 @@ class TRECCrawler:
 
             # 動態等待頁碼發生變化 (確認網頁已響應)
             self.wait.until(lambda d: d.find_element(By.CSS_SELECTOR, "input.paginate_input").get_attribute("value") != old_page_value)
-            # 等待表格內容更新完畢 (確認網頁響應完畢)
+            
+            # 等待舊的表格元素消失 (確保 DOM 已經被更新，不再是上一頁的資料)
+            if old_first_row:
+                try:
+                    self.wait.until(EC.staleness_of(old_first_row))
+                except Exception:
+                    pass
+
+            # 等待表格內容更新完畢 (確認沒有載入中字眼)
             self.wait_table_loaded()
-            time.sleep(3)  # 翻頁後硬等待 3 秒作為伺服器請求節流
+            time.sleep(1)  # 翻頁後硬等待 1 秒作為伺服器請求節流即可
             return True
         except Exception:
             return False
