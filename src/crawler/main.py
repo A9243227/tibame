@@ -5,7 +5,8 @@ import sys
 def main():
     # 只有具備無頭模式與 GCS 上傳邏輯的爬蟲
     scripts = [
-        "Applied_REC_cloudrun.py",
+        "REC_cloudrun_playwright_ver.py"
+        # "Applied_REC_cloudrun.py",
         # "cloud_run_auto_self_use.py",
         # "test.py"
     ]
