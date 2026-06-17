@@ -188,7 +188,7 @@ class TRECCrawler:
             if col not in fieldnames:
                 fieldnames.append(col)
                 
-        filename = f"trec_data_{year}.csv"
+        filename = f"trec_issued_certificate_{year}_raw.csv"
         try:
             with open(filename, 'w', newline='', encoding='utf-8-sig') as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
