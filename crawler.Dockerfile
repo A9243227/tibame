@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# 新增：安裝 Playwright 瀏覽器及其系統依賴
+RUN playwright install --with-deps chromium
+
 # 5. 將你所有的程式碼複製到容器內
 COPY . .
 
