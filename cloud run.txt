@@ -1,0 +1,274 @@
+容器映像檔網址
+工作名稱
+區域
+CPU / 記憶體
+逾時時間
+環境變數
+Bucket 位置
+
+
+要建立 Job，用這個指令
+爬蟲的 Cloud Run Job 建立指令：
+gcloud run jobs deploy trec-self-use-job `
+  --image asia-east1-docker.pkg.dev/project-c865579e-705e-4adb-aca/cloud-run-repo/trec-self-use:latest `
+  --region asia-east1 `
+  --tasks 1 `   ˇ有一個任務
+  --max-retries 1 `
+  --memory 2Gi `
+  --cpu 2 `
+  --task-timeout 3600 `
+  --set-env-vars="GCS_BUCKET=clawer-test,GCS_PREFIX=raw_data/t_rec/self_use_certification_trade,MAX_PAGES_PER_YEAR=1,RESTART_EVERY_PAGES=50"
+
+自動抓所有年份
+每一年只抓第 1 頁
+最多跑 3600 秒，也就是 1 小時
+資料存到 clawer-test bucket
+
+建立 Cloud Run Job
+使用 trec-self-use Docker image
+部署在台灣 asia-east1
+給 2 CPU / 2GB RAM
+最多跑 1 小時
+自動抓所有年份
+每一年只抓第 1 頁
+把 CSV 存到 clawer-test bucket
+
+
+
+
+
+設定資料存到 bucket
+--set-env-vars="GCS_BUCKET=clawer-test,GCS_PREFIX=raw_data/t_rec/self_use_certification_trade,..."
+
+建立完bucket後怎麼執行？
+gcloud run jobs execute trec-self-use-job --region asia-east1 --wait
+
+
+流程:
+    Python 程式
+        ↓
+    requirements.txt：列出 Python 套件
+        ↓
+    Dockerfile：寫出執行環境怎麼安裝
+        ↓
+    gcloud builds submit：把它打包成 image
+        ↓
+    Artifact Registry：存放 image
+        ↓
+    Cloud Run Job：用這個 image 跑爬蟲
+
+
+執行 Job
+gcloud.cmd run jobs execute $JOB_NAME --region $REGION --wait
+看 bucket 檔案
+gcloud.cmd storage ls gs://$GCS_BUCKET/$GCS_PREFIX/
+
+重新建立container
+gcloud.cmd builds submit --tag $IMAGE .
+
+
+====================================================================
+先照順序重新打：
+
+cd "C:\Users\kuros\Desktop\crawler\direct_transaction_cloudrun"
+
+然後重新設定變數：
+
+$PROJECT_ID = "tibametopics"
+$REGION = "asia-east1"
+$REPO = "cloud-run-repo"
+$IMAGE_NAME = "trec-direct-transaction"
+
+$IMAGE = "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:latest"
+
+確認 $IMAGE 有值：
+
+echo $IMAGE
+
+你應該要看到：
+
+asia-east1-docker.pkg.dev/tibametopics/cloud-run-repo/trec-direct-transaction:latest
+
+確認有看到後，再 build：
+
+gcloud.cmd builds submit --tag $IMAGE .
+
+重點是：每次你開新的 PowerShell 視窗，$IMAGE 都要重新設定一次，不然它會是空的。
+
+gcloud.cmd run jobs deploy trec-direct-job `
+  --image asia-east1-docker.pkg.dev/tibametopics/cloud-run-repo/trec-direct-transaction:latest `
+  --region asia-east1 `
+  --tasks 1 `
+  --max-retries 1 `         意思是tineout時間到還沒跑完的話，會先停止，再依照程式碼的邏輯，再跑一次                                                       
+  --memory 4Gi `
+  --cpu 2 `
+  --task-timeout 86400 `    建議設24小時
+  --set-env-vars="GCS_BUCKET=tibame-bronze,GCS_PREFIX=raw_data/direct_transaction/test_da,YEARS_TO_CRAWL=2026,MAX_PAGES_PER_YEAR=0,SAVE_EVERY_PAGES=10,LOCAL_WORKDIR=/tmp"
+
+gcloud.cmd run jobs execute trec-direct-job --region asia-east1 --wait
+
+
+目前最簡單先改善的方式是 deploy 時把等待時間加長：
+
+PAGE_SLEEP_SECONDS=8
+
+也就是正式指令改成這樣：
+
+--set-env-vars="GCS_BUCKET=tibame-bronze,GCS_PREFIX=raw_data/direct_transaction/test_da,YEARS_TO_CRAWL=2026,MAX_PAGES_PER_YEAR=0,SAVE_EVERY_PAGES=10,PAGE_SLEEP_SECONDS=8,LOCAL_WORKDIR=/tmp"
+
+原本預設是：
+
+PAGE_SLEEP_SECONDS=5
+
+Cloud Run 上我會建議先改成：
+
+PAGE_SLEEP_SECONDS=8
+
+如果還是很多失敗，再改：
+
+PAGE_SLEEP_SECONDS=10
+
+
+
+
+================================================================================================
+
+| 環境變數                   | 用途                        | 沒設定時                                                                   |
+| ---------------------- | ------------------------- | ---------------------------------------------------------------------- |
+| `GCS_BUCKET`           | 指定要上傳/下載的 GCS bucket      | 通常預設 `tibame-bronze`                                                   |
+| `GCS_PREFIX`           | 指定 bucket 裡面的資料夾路徑        | 例如 `raw_data/direct_transaction` 或 `raw_data/t_rec/direct_transaction` |
+| `PAGE_SLEEP_SECONDS`   | 換頁或重抓頁面後，要等幾秒讓網頁資料載入      | 例如 `5` 或 `8`                                                           |
+| `DETAIL_SLEEP_SECONDS` | 點「詳情」後，等待 modal 詳情視窗打開的秒數 | 通常 `1`～`2`                                                             |
+| `RESTART_EVERY_PAGES`  | 跑幾頁後重開瀏覽器，避免 Chrome 卡住    | 例如 `50` 或 `100`                                                        |
+
+
+
+================================================================================================
+
+
+
+所以對，0614 那份檔案不會被 0615 覆蓋掉。
+
+因為你的年度 raw 檔名是用：
+
+RUN_DATE_SHORT = datetime.now().strftime("%m%d")
+
+def get_year_raw_csv_name(year: str) -> str:
+    return f"{RAW_PREFIX}_{year}_{RUN_DATE_SHORT}.csv"
+
+也就是不同日期會產生不同檔名。
+
+================================================================================================
+更改GCS，BUCKET指令
+
+gcloud.cmd run jobs update trec-direct-job `
+  --region asia-east1 `
+  --update-env-vars=GCS_BUCKET=tibame-bronze,GCS_PREFIX=raw_data/all_year_data,MAX_PAGES_PER_YEAR=0
+
+
+
+
+
+  gcloud.cmd run jobs deploy playwright_trec_self `
+  --image asia-east1-docker.pkg.dev/tibametopics/playwright-trec-self/self-generation-transaction:latest `
+  --region asia-east1 `
+  --tasks 1 `
+  --max-retries 0 `
+  --memory 4Gi `
+  --cpu 2 `
+  --task-timeout 12h `
+  --set-env-vars="GCS_BUCKET=tibame-bronze,GCS_PREFIX=raw_data/all_year_data,MAX_PAGES_PER_YEAR=0,SAVE_EVERY_PAGES=10,PAGE_SLEEP_SECONDS=8,LOCAL_WORKDIR=/tmp"
+
+
+
+
+
+
+  建立 Repository
+  gcloud.cmd config set project tibametopics   先進專案
+
+ 開始在artifacts repositories 建立image存放區資料夾 指定倉庫放 Docker Image
+  gcloud.cmd artifacts repositories create playwright-trec `    playwright-trec資料夾名稱
+  --repository-format=docker `
+  --location=asia-east1 `
+  --description="Playwright T-REC Docker images"     說明
+
+$PROJECT_ID = "tibametopics"
+$REGION = "asia-east1"
+$REPO = "playwright-trec-self"
+$IMAGE_NAME = "self-generation-transaction"
+
+$IMAGE = "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:latest"
+
+
+
+echo $IMAGE
+
+應該會顯示：
+
+asia-east1-docker.pkg.dev/tibametopics/playwright-trec/playwright-direct-transaction:latest
+
+接著執行真正建置與上傳的指令：
+
+gcloud.cmd builds submit --tag $IMAGE .
+
+最後的 . 很重要，代表：
+
+把「目前這個資料夾」內的 Dockerfile、requirements.txt、
+Python 程式等檔案一起交給 Cloud Build。
+
+成功後先確認 Image 已經真的存在：
+
+gcloud.cmd artifacts docker images list `
+  asia-east1-docker.pkg.dev/tibametopics/playwright-trec
+
+確認 latest 標籤有指到 Image
+
+輸入：
+
+gcloud.cmd artifacts docker tags list `
+  asia-east1-docker.pkg.dev/tibametopics/playwright-trec/playwright-direct-transaction
+
+正常會看到類似：
+
+TAG      VERSION
+latest   sha256:34ed...
+
+或 latest 對應到其中一個 digest。
+
+
+建立 Bucket playwright_trec
+
+在 PowerShell 輸入：
+
+gcloud.cmd storage buckets create gs://playwright_trec_self `
+  --location=asia-east1 `
+  --default-storage-class=STANDARD
+
+這會建立新的 Bucket：playwright_trec
+
+確認方式:
+gcloud.cmd storage buckets list
+會顯示gs://playwright_trec/
+
+開始部屬job
+gcloud.cmd run jobs deploy $JOB_NAME `
+>>   --image $IMAGE `
+>>   --region $REGION `
+>>   --tasks 1 `
+>>   --max-retries 1 `
+>>   --memory 2Gi `
+>>   --cpu 2 `
+>>   --task-timeout 4h `
+>>   --set-env-vars="LOCAL_WORKDIR=/tmp,GCS_BUCKET=playwright_trec_self,GCS_PREFIX=direct_transaction,YEARS_TO_CRAWL=All,MAX_PAGES_PER_YEAR=3,SAVE_EVERY_PAGES=10,HEADLESS=true"
+
+執行
+gcloud.cmd run jobs execute $JOB_NAME `
+  --region $REGION `
+  --wait
+
+
+gcloud.cmd artifacts repositories create playwright-trec-self `    
+  --repository-format=docker `
+  --location=asia-east1 `
+  --description="Playwright trec-self Docker images"
