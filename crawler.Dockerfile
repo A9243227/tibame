@@ -22,9 +22,9 @@ RUN playwright install --with-deps chromium
 # 5. 將你所有的程式碼複製到容器內
 COPY . .
 
-# 6. 切換到 crawler 資料夾作為執行目錄，因為爬蟲程式都在這
-WORKDIR /app/src/crawler
+# 6. 設定 Python 路徑，讓任意層級的腳本都能找得到模組
+ENV PYTHONPATH="/app/src:${PYTHONPATH}"
 
 # 7. 設定啟動指令
-# 使用 main.py 來分配 Cloud Run Jobs 任務
-CMD ["python", "main.py"]
+# 不寫死單一腳本，讓 Airflow / Cloud Run 可以在建立 Job 時自由覆寫指令
+CMD ["echo", "Please specify the crawler python script to run."]
