@@ -1,0 +1,26 @@
+# Airflow 執行 Log
+logs/
+
+# Python 暫存檔
+__pycache__/
+*.py[cod]
+
+# 環境變數與帳密
+.env
+.env.*
+!.env.example
+
+# GCP Service Account 金鑰檔
+*service-account*.json
+*credential*.json
+*.key.json
+
+# 本機暫存檔
+*.log
+*.tmp
+*.temp
+
+# VS Code / Windows
+.vscode/
+.DS_Store
+Thumbs.db

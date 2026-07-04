@@ -1,0 +1,25 @@
+services:
+  airflow:
+    image: apache/airflow:3.2.2-python3.11
+    container_name: airflow-trec
+    restart: unless-stopped
+
+    command: standalone
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: "Asia/Taipei"
+      _PIP_ADDITIONAL_REQUIREMENTS: "google-cloud-run==0.16.1"
+
+    volumes:
+      - airflow_home:/opt/airflow
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts
+      - ./logs:/opt/airflow/logs
+
+volumes:
+  airflow_home:
