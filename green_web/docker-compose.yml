@@ -1,0 +1,9 @@
+services:
+  green-demo-web:
+    build: .
+    container_name: green-demo-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${WEB_PORT:-3000}:3000"

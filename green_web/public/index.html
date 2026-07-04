@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Green Demo Web</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">BigQuery Dashboard</p>
+          <h1>T-REC 憑證資料儀表板</h1>
+        </div>
+        <div id="sourceBadge" class="badge">Loading</div>
+      </section>
+
+      <section class="filters" aria-label="Filters">
+        <label>
+          From
+          <input id="fromInput" type="date" value="2026-01-01" />
+        </label>
+        <label>
+          To
+          <input id="toInput" type="date" value="2026-01-03" />
+        </label>
+        <label>
+          案場
+          <select id="siteInput">
+            <option value="">全部案場</option>
+          </select>
+        </label>
+        <button id="refreshButton" type="button">更新</button>
+      </section>
+
+      <section class="kpis" aria-label="Summary">
+        <article>
+          <span>總轉供量</span>
+          <strong id="transferredKpi">0</strong>
+          <small>MWh</small>
+        </article>
+        <article>
+          <span>剩餘憑證量</span>
+          <strong id="remainingKpi">0</strong>
+          <small>MWh</small>
+        </article>
+        <article>
+          <span>憑證筆數</span>
+          <strong id="certificateKpi">0</strong>
+          <small>records</small>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <div class="panelHeader">
+            <h2>每日轉供量</h2>
+          </div>
+          <div id="dailyChart" class="barChart"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panelHeader">
+            <h2>能源類型分布</h2>
+          </div>
+          <div id="categoryList" class="categoryList"></div>
+        </article>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
