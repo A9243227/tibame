@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "./config.js";
 import { fetchDashboard } from "./dashboardQueries.js";
+import { getDailyCachedData } from "./dailyCache.js";
 import { fetchSites, fetchSummary } from "./queries.js";
 import { getMockSites, getMockSummary } from "./mockData.js";
 
@@ -55,7 +56,19 @@ app.get("/api/summary", async (req, res, next) => {
 
 app.get("/api/dashboard", async (req, res, next) => {
   try {
-    const dashboard = await fetchDashboard(req.query);
+    const shouldUseCache = config.dailyCacheEnabled && !config.useMockData;
+    const result = shouldUseCache
+      ? await getDailyCachedData("dashboard", req.query, () => fetchDashboard(req.query))
+      : {
+          data: await fetchDashboard(req.query),
+          cacheStatus: "disabled",
+          cacheDate: ""
+        };
+
+    res.set("X-Daily-Cache", result.cacheStatus);
+    if (result.cacheDate) res.set("X-Daily-Cache-Date", result.cacheDate);
+
+    const dashboard = result.data;
     res.json(dashboard);
   } catch (error) {
     next(error);

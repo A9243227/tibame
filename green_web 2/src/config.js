@@ -8,7 +8,9 @@ export const config = {
   googleCloudProject: process.env.GOOGLE_CLOUD_PROJECT || "",
   bigQueryLocation: process.env.BIGQUERY_LOCATION || "US",
   bigQueryDataset: process.env.BIGQUERY_DATASET || "trec_data",
-  bigQueryTable: process.env.BIGQUERY_TABLE || "fact_issued_certificate"
+  bigQueryTable: process.env.BIGQUERY_TABLE || "fact_issued_certificate",
+  dailyCacheEnabled: String(process.env.DAILY_CACHE_ENABLED || "true").toLowerCase() === "true",
+  dailyCacheDir: process.env.DAILY_CACHE_DIR || ".cache"
 };
 
 export function getTableName() {

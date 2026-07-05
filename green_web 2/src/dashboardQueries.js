@@ -1,7 +1,12 @@
 import { getDatasetTableName } from "./config.js";
 import { runQuery } from "./bigqueryClient.js";
 
+// BigQuery 回傳的 NUMERIC / INTEGER 有時會是字串或 null，
+// 這裡統一轉成前端圖表可以直接使用的 Number。
 const numberValue = (value) => (value == null ? 0 : Number(value));
+
+// BigQuery DATE / TIMESTAMP 在 Node.js SDK 可能回傳字串，
+// 也可能回傳 { value: "YYYY-MM-DD" } 這種物件，這裡統一轉成字串。
 const dateValue = (value) => {
   if (!value) return "";
   if (typeof value === "string") return value;
@@ -9,8 +14,12 @@ const dateValue = (value) => {
   return String(value);
 };
 
+// 網頁所有 dashboard 資料都以這張 BigQuery 明細 view 為主要來源。
+// 這樣篩選條件可以套用在 KPI、圖表、排行、明細列表等所有區塊。
 const detailView = () => getDatasetTableName("vw_transaction_detail");
 
+// 依照前端傳進來的 query string 組出 BigQuery WHERE 條件。
+// 使用 @year / @energy 這種參數化查詢，避免直接把使用者輸入拼進 SQL。
 function buildDetailFilters(query = {}, dateColumn = "transaction_date") {
   const whereParts = ["1 = 1"];
   const params = {};
@@ -41,12 +50,18 @@ function buildDetailFilters(query = {}, dateColumn = "transaction_date") {
   };
 }
 
+// /api/dashboard 會呼叫這個 function。
+// 它會一次查 BigQuery 多個統計結果，最後整理成前端 App.vue 需要的 JSON 格式。
 export async function fetchDashboard(query = {}) {
   const detailFilter = buildDetailFilters(query);
+
+  // 明細列表分頁設定：預設每頁 50 筆，最多 100 筆，避免一次拉太多資料。
   const recordPageSize = Math.min(Math.max(Number(query.recordPageSize || 50), 1), 100);
   const recordPage = Math.max(Number(query.recordPage || 1), 1);
   const recordOffset = (recordPage - 1) * recordPageSize;
 
+  // 這些查詢彼此沒有相依性，所以用 Promise.all 平行查 BigQuery，
+  // 可以讓 dashboard 載入速度比一個一個查更快。
   const [
     kpiRows,
     monthlyRows,
@@ -63,6 +78,7 @@ export async function fetchDashboard(query = {}) {
     recordRows,
     filterRows
   ] = await Promise.all([
+    // KPI：總交易筆數、買賣方數、案場數、總成交量、資料期間。
     runQuery(
       `
         SELECT
@@ -78,6 +94,7 @@ export async function fetchDashboard(query = {}) {
       `,
       detailFilter.params
     ),
+    // 月統計：折線圖 / 趨勢圖使用，並拆出直轉供與自發自用兩種來源。
     runQuery(
       `
         SELECT
@@ -93,6 +110,7 @@ export async function fetchDashboard(query = {}) {
       `,
       detailFilter.params
     ),
+    // 日統計：較細的時間序列資料，同樣拆出不同交易來源。
     runQuery(
       `
         SELECT
@@ -108,6 +126,7 @@ export async function fetchDashboard(query = {}) {
       `,
       detailFilter.params
     ),
+    // 能源類型分布：例如太陽能、風力能、生質能等。
     runQuery(
       `
         SELECT
@@ -121,6 +140,7 @@ export async function fetchDashboard(query = {}) {
       `,
       detailFilter.params
     ),
+    // 資料來源分布：例如直轉供憑證成交、自用發電設備憑證成交。
     runQuery(
       `
         SELECT
@@ -135,6 +155,7 @@ export async function fetchDashboard(query = {}) {
       `,
       detailFilter.params
     ),
+    // 供給類型分布：沒有供給類型時統一顯示為「未分類」。
     runQuery(
       `
         SELECT
@@ -148,6 +169,7 @@ export async function fetchDashboard(query = {}) {
       `,
       detailFilter.params
     ),
+    // 賣方排行：依照成交 MWh 排名前 10 名。
     runQuery(
       `
         SELECT
@@ -164,6 +186,7 @@ export async function fetchDashboard(query = {}) {
       `,
       detailFilter.params
     ),
+    // 買方排行：依照成交 MWh 排名前 10 名。
     runQuery(
       `
         SELECT
@@ -180,6 +203,7 @@ export async function fetchDashboard(query = {}) {
       `,
       detailFilter.params
     ),
+    // 年度 KPI：前端年度表格 / 年度趨勢使用。
     runQuery(
       `
         SELECT
@@ -196,6 +220,7 @@ export async function fetchDashboard(query = {}) {
       `,
       detailFilter.params
     ),
+    // 買賣方流向圖：先找出交易量最高的買方與賣方，再統計彼此之間的流量。
     runQuery(
       `
         WITH filtered AS (
@@ -232,6 +257,7 @@ export async function fetchDashboard(query = {}) {
       `,
       detailFilter.params
     ),
+    // 案場流向：賣方 -> 案場 -> 買方，用於前端 Sankey 或流向表。
     runQuery(
       `
         SELECT
@@ -251,6 +277,7 @@ export async function fetchDashboard(query = {}) {
       `,
       detailFilter.params
     ),
+    // 明細資料總筆數：用來計算分頁總頁數。
     runQuery(
       `
         SELECT COUNT(*) AS record_count
@@ -259,6 +286,7 @@ export async function fetchDashboard(query = {}) {
       `,
       detailFilter.params
     ),
+    // 明細列表：依日期與交易量排序，只取目前頁面需要的資料。
     runQuery(
       `
         SELECT
@@ -277,6 +305,8 @@ export async function fetchDashboard(query = {}) {
       `,
       { ...detailFilter.params, recordPageSize, recordOffset }
     ),
+    // 篩選選項：年份、能源類型、供給類型、資料來源。
+    // 這裡不套用目前篩選條件，讓下拉選單永遠保留完整可選項目。
     runQuery(
       `
         SELECT DISTINCT
@@ -306,6 +336,8 @@ export async function fetchDashboard(query = {}) {
   const kpi = kpiRows[0] || {};
   const recordTotal = numberValue(recordCountRows[0]?.record_count);
 
+  // 將 BigQuery 的 snake_case 欄位整理成前端使用的 camelCase 欄位。
+  // 前端 App.vue 只需要吃這個 JSON，不需要知道 BigQuery 原始欄位名稱。
   return {
     kpi: {
       transactionCount: numberValue(kpi.transaction_count),

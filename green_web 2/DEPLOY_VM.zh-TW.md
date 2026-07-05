@@ -73,6 +73,8 @@ GOOGLE_CLOUD_PROJECT=tibametopics
 BIGQUERY_LOCATION=asia-east1
 BIGQUERY_DATASET=trec_data
 BIGQUERY_TABLE=fact_issued_certificate
+DAILY_CACHE_ENABLED=true
+DAILY_CACHE_DIR=.cache
 EOF
 ```
 
@@ -81,6 +83,7 @@ EOF
 - `USE_MOCK_DATA=false`：代表真的查 BigQuery
 - `BIGQUERY_LOCATION=asia-east1`：你的 BigQuery dataset 是這個位置
 - `WEB_PORT=3000`：外部用 `http://VM外部IP:3000` 連
+- `DAILY_CACHE_ENABLED=true`：同一天同條件的 dashboard 查詢只會第一次打 BigQuery，後面讀快取
 
 如果要改成 80 port：
 
@@ -172,4 +175,3 @@ docker compose up -d --build
 ```bash
 docker compose down
 ```
-
