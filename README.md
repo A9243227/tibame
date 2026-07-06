@@ -18,10 +18,8 @@
 - [資料流程](#資料流程)
 - [目錄結構](#目錄結構)
 - [快速開始](#快速開始)
-- [環境變數設定](#環境變數設定)
 - [資料倉儲架構](#資料倉儲架構)
 - [Airflow DAG 說明](#airflow-dag-說明)
-- [CI/CD 流程](#cicd-流程)
 
 ---
 
@@ -35,15 +33,15 @@
 
 ## 專案簡介
 
-本專案以台灣[再生能源憑證（T-REC）](https://trec.taipower.com.tw/)交易資料為核心，建構一套完整的**雲端原生資料工程平台**，涵蓋三大資料來源的自動化採集、資料清洗、倉儲建模及視覺化分析。
+本專案以台灣[國家再生能源憑證中心（T-REC）](https://www.trec.org.tw/)交易資料為核心，建構一套完整的**雲端原生資料工程平台**，涵蓋三大資料來源的自動化採集、資料清洗、倉儲建模及視覺化分析。
 
 ### 資料來源
 
 | 資料集 | 說明 |
 |---|---|
 | 直轉供憑證成交紀錄 | 企業向發電業者直接購買的 T-REC 交易明細 |
-| 自用發電設備憑證 | 企業自建再生能源設備的憑證移轉紀錄 |
-| 已發放憑證清冊 | 台電發放中的全數憑證現況總覽 |
+| 自用發電設備憑證 | 自建再生能源設備的憑證移轉紀錄 |
+| 已發放憑證清冊 | 已發放的全數憑證總覽 |
 
 ### 技術亮點
 
@@ -82,7 +80,7 @@
 | 工具 | 用途 |
 |---|---|
 | Apache Airflow 3.2+ | DAG 工作流排程與 Asset 資料血緣 |
-| GitHub Actions | CI/CD：自動建置映像並部署至 Cloud Run |
+| GitHub | CI/CD：建置映像並部署至 Cloud Run |
 | Docker | 爬蟲與 BigQuery 處理各自獨立容器化 |
 
 ---
@@ -96,7 +94,7 @@
 ![整體架構圖](docs/images/tibame-highlevel-datapipeline.jpg)
 
 **架構說明：**
-- **Data Lake (GCS)** — 以 Cloud Run Jobs 執行三隻爬蟲（`main.py` 統一入口，透過 Task Index 分派），將原始 CSV 落地至 `tibame-bronze` Bucket
+- **Data Lake (GCS)** — 以 Cloud Run Jobs 執行三隻爬蟲（透過DAG腳本覆寫`Override`以單一IMAGE控制多隻爬蟲執行），將原始 CSV 落地至 `tibame-bronze` Bucket
 - **Data Warehouse (BigQuery)** — Silver 層建立維度表（facility、energy_type、company、supply_type），Gold 層建立事實表與分析 View
 - **Application** — 供 Looker Studio / Tableau / Data Studio 直接連接 BigQuery View 視覺化呈現
 - **技術底座** — Python（爬蟲 + ETL）、SQL/SQLX（BigQuery 轉換）、Airflow（排程編排）、Dockerfile + Cloud Run（容器執行）
@@ -206,38 +204,13 @@ uv sync
 pip install -r requirements.txt
 ```
 
-### 安裝 Playwright 瀏覽器
+### 安裝開源版chrome瀏覽器供playwright於容器中運行
 
 ```bash
 uv run playwright install chromium
 ```
 
 ---
-
-## 環境變數設定
-
-在專案根目錄建立 `.env` 檔案：
-
-```dotenv
-# MySQL 本地資料庫
-MYSQL_HOST=localhost
-MYSQL_PORT=3306
-MYSQL_USER=root
-MYSQL_PASSWORD=your_password
-MYSQL_DATABASE=green_energy_exchange_db
-MYSQL_CHARSET=utf8mb4
-
-# Google Cloud Platform
-GCP_PROJECT_ID=tibametopics
-BQ_DATASET_ID=gcstobq_airflowtest
-GCS_BUCKET=tibame-bronze
-
-# 爬蟲設定
-YEARS_TO_CRAWL=2026,2025       # 要採集的年份（逗號分隔）
-MAX_PAGES_PER_YEAR=0           # 0 = 不限頁數
-SAVE_EVERY_PAGES=10            # 每 N 頁存一次 checkpoint
-HEADLESS=true                  # 無頭模式（Cloud Run 建議 true）
-```
 
 > **GCP 本地開發：** 設定 `GOOGLE_APPLICATION_CREDENTIALS` 指向服務帳戶 JSON 金鑰，或執行 `gcloud auth application-default login`。
 
@@ -313,24 +286,6 @@ dag_rec       ──▶ GCS Asset 更新 ─┘
 
 ---
 
-## CI/CD 流程
-
-### GitHub Actions 自動部署
-
-**觸發條件：** Push 至 `main` 分支
-
-```
-Checkout 程式碼
-    ↓
-GCP 身份驗證（Workload Identity Federation）
-    ↓
-建置 Docker 映像
-    ↓
-推送至 Artifact Registry（asia-east1）
-    ↓
-部署至 Cloud Run（asia-east1，Project: tibametopics）
-```
-
 ### Workload Identity Federation
 
 使用 OIDC 實現零長效金鑰部署，GitHub Actions 無需儲存任何 GCP 服務帳戶 JSON，顯著降低憑證洩漏風險。
@@ -345,5 +300,5 @@ GCP 身份驗證（Workload Identity Federation）
 | 資料品質 | 四類清洗函式、三層 Medallion 資料驗證 |
 | 雲端架構 | GCS Data Lake + BigQuery DW 雙層雲端儲存 |
 | 排程設計 | Airflow Asset 依賴、解耦多 DAG、Cloud Run 動態執行 |
-| DevOps | GitHub Actions + Workload Identity Federation 零金鑰 CI/CD |
+| DevOps | Workload Identity Federation 零金鑰 CI/CD |
 | 延展性 | 雙軌倉儲（BigQuery / MySQL），支援雲端與本地開發 |
