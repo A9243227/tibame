@@ -61,7 +61,7 @@
 |---|---|
 | 主要語言 | Python 3.13 |
 | 資料處理 | pandas 3.0+、SQLAlchemy 2.0+ |
-| 瀏覽器自動化 | Playwright（主）、Selenium（舊版） |
+| 瀏覽器自動化 | Playwright |
 | 視覺化 | Plotly 5.24+、Streamlit 1.40+ |
 | 資料庫 | BigQuery、MySQL |
 
@@ -71,7 +71,7 @@
 |---|---|
 | **Cloud Storage (GCS)** | 原始 CSV 資料湖（`tibame-bronze`） |
 | **BigQuery** | 雲端資料倉儲，執行 Medallion 架構轉換 |
-| **Cloud Run Jobs** | 無伺服器容器化爬蟲與 ETL 任務執行 |
+| **Cloud Run Jobs** | 無伺服器容器化爬蟲與 ETL 任務執行（`crawler-image`、`bq-image`） |
 | **Artifact Registry** | Docker 映像管理（`asia-east1`） |
 | **Workload Identity Federation** | 無長效金鑰的 GitHub Actions 安全認證 |
 
@@ -94,10 +94,10 @@
 ![整體架構圖](docs/images/tibame-highlevel-datapipeline.jpg)
 
 **架構說明：**
-- **Data Lake (GCS)** — 以 Cloud Run Jobs 執行三隻爬蟲（透過DAG腳本覆寫`Override`以單一IMAGE控制多隻爬蟲執行），將原始 CSV 落地至 `tibame-bronze` Bucket
+- **Data Lake (GCS)** — 以 Cloud Run Jobs 執行三隻爬蟲（透過 DAG 腳本覆寫 `args` 以單一 IMAGE 控制多隻爬蟲執行），將原始 CSV 落地至 `tibame-bronze` Bucket
 - **Data Warehouse (BigQuery)** — Silver 層建立維度表（facility、energy_type、company、supply_type），Gold 層建立事實表與分析 View
 - **Application** — 供 Looker Studio / Tableau / Data Studio 直接連接 BigQuery View 視覺化呈現
-- **技術底座** — Python（爬蟲 + ETL）、SQL/SQLX（BigQuery 轉換）、Airflow（排程編排）、Dockerfile + Cloud Run（容器執行）
+- **技術底座** — Python（爬蟲 + ETL）、SQL（BigQuery 轉換）、Airflow（排程編排）、Dockerfile + Cloud Run（容器執行）
 
 ---
 
@@ -109,12 +109,12 @@
 
 **流程說明：**
 
-| 階段 | 爬蟲 DAG | 步驟 |
+| 階段 | DAG | 步驟 |
 |---|---|---|
-| 直轉供 | `dag_01_crawl_direct_transaction` | crawl → retry → deduplicate → pipeline → `direct_raw` |
-| 自用發電 | `dag_2_self_use` | crawl → `self_raw` |
-| 已發放憑證 | `dag_rec_cloudrun` | crawl → `REC_raw` |
-| BigQuery 轉換 | `dag_bq_transform`（Asset 觸發） | 00_create_dataset → 02_load_raw → 04_clean → 06_dimension → 08_fact → 11_view |
+| 直轉供 | `dag_crawl_direct_transaction` | 04_pipeline（內含 01 crawl → 02 retry → 03 deduplicate）→ `direct_raw` |
+| 自用發電 | `dag_crawl_self_use` | 04_pipeline（內含 01 crawl → 02 retry → 03 deduplicate）→ `self_raw` |
+| 已發放憑證 | `dag_crawl_rec` | 01 crawl → `rec_raw` |
+| BigQuery 轉換 | `bq_transform_pipeline`（Asset 觸發） | 00_create_dataset → 02_load_raw → 04_clean → 06_dimension → 08_fact → 10_view |
 
 ---
 
@@ -156,29 +156,30 @@ Step 08  建立分析 View：反正規化寬表，供 BI 工具直接查詢
 ```
 tibame/
 ├── .github/workflows/
-│   └── cloud-run.yml          # GitHub Actions CI/CD
-├── dags/                      # Airflow DAG 定義
-│   ├── common_config.py       # 共用 GCP 設定（專案 ID、Bucket 等）
+│   └── cloud-run.yml              # GitHub Actions CI/CD
+├── dags/                          # Airflow DAG 定義
+│   ├── common_config.py           # 共用 GCP 設定（專案 ID、Bucket、Job 名稱等）
 │   ├── dag_crawl_direct_transaction.py
 │   ├── dag_crawl_self_use.py
+│   ├── dag_crawl_self_generation_retry.py  # 手動觸發補跑（schedule=None）
 │   ├── dag_crawl_rec.py
-│   └── dag_bq_transform.py    # Asset-triggered BigQuery 轉換 DAG
+│   └── dag_bq_transform.py        # Asset-triggered BigQuery 轉換 DAG
+├── data/                          # 本地原始 CSV 資料（開發測試用）
 ├── src/
-│   ├── crawler/               # 爬蟲模組
-│   │   ├── direct_transaction_cloudrun_playwright/  # 直轉供（Playwright）
-│   │   ├── self_generation_update/                  # 自用發電（Selenium）
-│   │   └── REC_cloudrun_playwright_ver.py           # 已發放憑證（Playwright）
+│   ├── crawler/                   # 爬蟲模組（三隻均以 Playwright 實作）
+│   │   ├── direct_transaction_cloudrun_playwright/  # 直轉供（01→02→03 + 04 總控）
+│   │   ├── self_generation_update/                  # 自用發電（01→02→03 + 04/05 總控）
+│   │   └── REC_cloudrun_playwright_ver.py           # 已發放憑證（單檔）
 │   ├── database/
-│   │   ├── csv_to_mysql.py
-│   │   └── sql/               # MySQL Schema（Raw → Clean → Dim → Fact → View）
+│   │   ├── csv_to_mysql.py        # CSV 匯入本地 MySQL
+│   │   └── sql/                   # MySQL Schema（Raw → Clean → Dim → Fact → View）
 │   └── green_pipeline/
-│       ├── BigQuery/STAR0/Python/  # BigQuery 00~11 步驟腳本
-│       └── MySQL/                  # 本地 MySQL Pipeline 腳本
-├── docs/                      # 技術文件與資料字典
-├── bq.Dockerfile              # BigQuery 處理容器
-├── crawler.Dockerfile         # 爬蟲容器
-├── gcp_medallion_pipeline_dag.py
-├── airflow-for-gcp.py
+│       ├── BigQuery/STAR0/Python/ # BigQuery 00~10 步驟腳本（雲端主線）
+│       ├── MySQL/                 # 本地 MySQL SQL 腳本（對應 BigQuery 各層結構）
+│       └── Python/                # 本地 MySQL Pipeline Python 腳本（開發驗證用）
+├── docs/                          # 技術文件與資料字典
+├── bq.Dockerfile                  # BigQuery 處理容器
+├── crawler.Dockerfile             # 爬蟲容器
 ├── pyproject.toml
 └── requirements.txt
 ```
@@ -204,7 +205,7 @@ uv sync
 pip install -r requirements.txt
 ```
 
-### 安裝開源版chrome瀏覽器供playwright於容器中運行
+### 安裝開源版 Chrome 瀏覽器供 Playwright 於容器中運行
 
 ```bash
 uv run playwright install chromium
@@ -267,22 +268,22 @@ dim_supply_type  ─────┘     fact_issued_certificate
 
 | DAG | 排程 | 說明 |
 |---|---|---|
-| `dag_01_crawl_direct_transaction` | `@daily` | 採集直轉供紀錄（4 步驟序列） |
-| `dag_2_self_use` | `@daily` | 採集自用發電憑證 |
-| `dag_rec_cloudrun` | `@daily` | 採集已發放憑證清冊 |
-| `dag_bq_transform` | Asset 觸發 | 執行 BigQuery 完整轉換鏈（00 → 10） |
+| `dag_crawl_direct_transaction` | `@daily` | 採集直轉供紀錄（04 總控內含 01→02→03） |
+| `dag_crawl_self_use` | `@daily` | 採集自用發電憑證（04 總控內含 01→02→03） |
+| `dag_crawl_rec` | `@daily` | 採集已發放憑證清冊 |
+| `bq_transform_pipeline` | Asset 觸發 | 執行 BigQuery 完整轉換鏈（00 → 10） |
 
 ### 執行流程示意
 
 ```
-dag_01_crawl  ──▶ GCS Asset 更新 ─┐
-dag_2_self    ──▶ GCS Asset 更新 ─┼──▶ dag_bq_transform ──▶ BigQuery Gold 層
-dag_rec       ──▶ GCS Asset 更新 ─┘
+dag_crawl_direct_transaction  ──▶ GCS Asset 更新 ─┐
+dag_crawl_self_use            ──▶ GCS Asset 更新 ─┼──▶ bq_transform_pipeline ──▶ BigQuery Gold 層
+dag_crawl_rec                 ──▶ GCS Asset 更新 ─┘
 ```
 
 ### Cloud Run 動態覆寫
 
-爬蟲與 ETL 步驟均以 Cloud Run Job 執行，透過環境變數 `SCRIPT_PATH` 動態指定要執行的腳本，實現單一容器映像多腳本複用。
+爬蟲（`crawler-image`）與 BigQuery ETL（`bq-image`）均以 Cloud Run Job 執行，透過 `args` 動態指定要執行的腳本，實現單一容器映像多腳本複用。
 
 ---
 
