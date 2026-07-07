@@ -12,8 +12,8 @@ default_args = {
     'retry_delay': datetime.timedelta(minutes=5),
 }
 
-PROJECT_ID = "trec-test-499607"
-DATASET_ID = "trec_test"
+PROJECT_ID = "tibametopics"
+DATASET_ID = "trec_data"
 
 def build_dim_company():
     pipeline = BigQueryETLPipeline(
