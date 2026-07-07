@@ -4,7 +4,7 @@ from airflow.sdk import dag, Asset
 from airflow.providers.google.cloud.operators.cloud_run import CloudRunExecuteJobOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 
-from common_config import PROJECT_ID, REGION, GCS_BUCKET, BQ_DATASET, DEFAULT_ARGS
+from common_config import PROJECT_ID, REGION, GCS_BUCKET, BQ_DATASET, DEFAULT_ARGS, CRAWLER_JOB_NAME
 
 direct_raw_asset = Asset(f"bq://{PROJECT_ID}.{BQ_DATASET}.direct_raw")
 
@@ -23,28 +23,48 @@ def crawl_direct_transaction():
         task_id='01_crawl_direct_transaction_raw',
         project_id=PROJECT_ID,
         region=REGION,
-        job_name='crawl-direct-transaction-raw',
+        job_name=CRAWLER_JOB_NAME,
+        overrides={
+            "container_overrides": [
+                {"args": ["python", "src/crawler/direct_transaction_cloudrun_playwright/01_crawl_direct_transaction_raw.py"]}
+            ]
+        },
     )
 
     crawl_02 = CloudRunExecuteJobOperator(
         task_id='02_retry_direct_transaction_failed',
         project_id=PROJECT_ID,
         region=REGION,
-        job_name='retry-direct-transaction-failed',
+        job_name=CRAWLER_JOB_NAME,
+        overrides={
+            "container_overrides": [
+                {"args": ["python", "src/crawler/direct_transaction_cloudrun_playwright/02_retry_direct_transaction_failed.py"]}
+            ]
+        },
     )
 
     crawl_03 = CloudRunExecuteJobOperator(
         task_id='03_etl_direct_transaction_deduplicate',
         project_id=PROJECT_ID,
         region=REGION,
-        job_name='etl-direct-transaction-dedup',
+        job_name=CRAWLER_JOB_NAME,
+        overrides={
+            "container_overrides": [
+                {"args": ["python", "src/crawler/direct_transaction_cloudrun_playwright/03_etl_direct_transaction_deduplicate.py"]}
+            ]
+        },
     )
 
     crawl_04 = CloudRunExecuteJobOperator(
         task_id='04_run_direct_transaction_pipeline',
         project_id=PROJECT_ID,
         region=REGION,
-        job_name='run-direct-transaction-pipeline',
+        job_name=CRAWLER_JOB_NAME,
+        overrides={
+            "container_overrides": [
+                {"args": ["python", "src/crawler/direct_transaction_cloudrun_playwright/04_run_direct_transaction_pipeline.py"]}
+            ]
+        },
     )
 
     gcs_to_bq_direct = GCSToBigQueryOperator(

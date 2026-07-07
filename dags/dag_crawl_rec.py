@@ -4,7 +4,7 @@ from airflow.sdk import dag, Asset
 from airflow.providers.google.cloud.operators.cloud_run import CloudRunExecuteJobOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 
-from common_config import PROJECT_ID, REGION, GCS_BUCKET, BQ_DATASET, DEFAULT_ARGS
+from common_config import PROJECT_ID, REGION, GCS_BUCKET, BQ_DATASET, DEFAULT_ARGS, CRAWLER_JOB_NAME
 
 rec_raw_asset = Asset(f"bq://{PROJECT_ID}.{BQ_DATASET}.rec_raw")
 
@@ -23,7 +23,12 @@ def crawl_rec():
         task_id='01_rec_cloudrun_playwright',
         project_id=PROJECT_ID,
         region=REGION,
-        job_name='rec-cloudrun-playwright',
+        job_name=CRAWLER_JOB_NAME,
+        overrides={
+            "container_overrides": [
+                {"args": ["python", "src/crawler/REC_cloudrun_playwright_ver.py"]}
+            ]
+        },
     )
 
     gcs_to_bq_rec = GCSToBigQueryOperator(
