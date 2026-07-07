@@ -209,7 +209,7 @@ class TRECCrawler:
 
     def _upload_to_gcs(self, local_filename: str, year: int):
         bucket_name = "tibame-bronze"
-        destination_blob_name = f"raw_data/test_data/{local_filename}"
+        destination_blob_name = f"new_raw_data/certified_issued_data/{local_filename}"
         
         try:
             storage_client = storage.Client()
