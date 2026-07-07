@@ -11,8 +11,8 @@ default_args = {
     'retry_delay': datetime.timedelta(minutes=3),
 }
 
-PROJECT_ID = "trec-test-499607"
-DATASET_ID = "trec_test"
+PROJECT_ID = "tibametopics"
+DATASET_ID = "trec_data"
 
 # 定義上游資料觸發資產（這裡維持使用變數，方便未來改動）
 asset_fact_direct = Asset(uri=f"bigquery://{PROJECT_ID}/{DATASET_ID}/fact_direct_transaction")

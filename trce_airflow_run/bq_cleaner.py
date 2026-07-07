@@ -6,7 +6,7 @@ class BigQueryETLPipeline:
 from google.cloud import bigquery
 
 class BigQueryETLPipeline:
-    def __init__(self, project_id: str = "trec-test-499607", dataset_id: str = "trec_test"):
+    def __init__(self, project_id: str ="tibametopics", dataset_id: str = "trec_data"):
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.client = bigquery.Client(project=project_id) # 建立 BigQuery 連線用戶端
