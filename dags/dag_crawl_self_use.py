@@ -1,17 +1,15 @@
 import datetime
 
-from airflow.sdk import dag, Asset
+from airflow.sdk import dag
 from airflow.providers.google.cloud.operators.cloud_run import CloudRunExecuteJobOperator
-from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 
-from common_config import PROJECT_ID, REGION, GCS_BUCKET, BQ_DATASET, DEFAULT_ARGS
-
-self_raw_asset = Asset(f"bq://{PROJECT_ID}.{BQ_DATASET}.self_raw")
+from common_config import PROJECT_ID, REGION, DEFAULT_ARGS, CRAWLER_JOB_NAME
 
 
 @dag(
-    description='爬取 Self Use 資料，寫入 BQ self_raw table',
+    description='爬取 Self Use 資料，上傳 GCS',
     schedule='@daily',
+    dag_id='dag_crawl_self_use',
     start_date=datetime.datetime(2023, 1, 1),
     catchup=False,
     tags=['gcp', 'crawler', 'self_use'],
@@ -19,25 +17,17 @@ self_raw_asset = Asset(f"bq://{PROJECT_ID}.{BQ_DATASET}.self_raw")
     default_args=DEFAULT_ARGS,
 )
 def crawl_self_use():
-    crawl_self_use_task = CloudRunExecuteJobOperator(
-        task_id='01_self_use_crawler',
+    CloudRunExecuteJobOperator(
+        task_id='04_run_self_generation_pipeline',
         project_id=PROJECT_ID,
         region=REGION,
-        job_name='self-use-crawler',
+        job_name=CRAWLER_JOB_NAME,
+        overrides={
+            "container_overrides": [
+                {"args": ["python", "src/crawler/self_generation_update/04_run_self_generation_transaction_pipeline.py"]}
+            ]
+        },
     )
-
-    gcs_to_bq_self = GCSToBigQueryOperator(
-        task_id='gcs_to_bq_self_use',
-        bucket=GCS_BUCKET,
-        source_objects=['self_use_raw/*.csv'],
-        destination_project_dataset_table=f'{PROJECT_ID}.{BQ_DATASET}.self_raw',
-        write_disposition='WRITE_TRUNCATE',
-        source_format='CSV',
-        autodetect=True,
-        outlets=[self_raw_asset],
-    )
-
-    crawl_self_use_task >> gcs_to_bq_self
 
 
 crawl_self_use()

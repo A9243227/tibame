@@ -9,6 +9,9 @@ REGION = "asia-east1"
 GCS_BUCKET = "tibame-bronze"
 BQ_DATASET = "gcstobq_airflowtest"
 
+CRAWLER_JOB_NAME = "crawler-image"
+BQ_JOB_NAME = "bq-image"
+
 DEFAULT_ARGS = {
     'owner': 'data_engineer',
     'depends_on_past': False,
