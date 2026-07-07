@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
 
 # 4. 複製套件清單並安裝 Python 依賴
 # 請確保你的專案根目錄有 requirements.txt (裡面要有 selenium 等套件)
-COPY requirements.txt .
+COPY crawler.requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 新增：安裝 Playwright 瀏覽器及其系統依賴
