@@ -14,7 +14,9 @@ T-REC 直轉供憑證成交紀錄：Cloud Run Playwright + API raw 爬蟲版
 8. 每 SAVE_EVERY_PAGES 頁保存年度 raw / all_year / status / failed，並上傳 GCS。
 9. 每一年結束一定再保存與上傳一次。
 10. failed.csv 使用固定檔名；每次 01 開始時清空成只有表頭，代表本次 01 的失敗清單。
-11. 發生真正失敗時，failed.csv 會立即寫入並上傳 GCS。
+11. 發生真正失敗時，failed.csv 只立即寫入 /tmp；GCS 上傳交由批次 checkpoint
+    （SAVE_EVERY_PAGES、年度結束、例外處理）統一進行。
+    原因：GCS 同一 object 每秒最多約 1 次覆寫；連續失敗時逐筆上傳會觸發 429。
 12. status.csv 使用固定檔名；遇到「目前沒有資料」時採 append，永久保留歷史紀錄。
 13. detail 的「成交記錄 <ol></ol> 空白」不是失敗，只代表該筆沒有成交記錄。
 14. 01 不做 retry；retry 交給 02。
@@ -59,6 +61,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from google.cloud import storage
+from google.cloud.storage.retry import DEFAULT_RETRY
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
@@ -444,14 +447,19 @@ def create_storage_client() -> storage.Client:
 
 
 def upload_file_to_gcs(path: Path, blob_name: str) -> None:
-    """把本機檔案上傳到指定 GCS object。"""
+    """
+    把本機檔案上傳到指定 GCS object。
+
+    retry=DEFAULT_RETRY：偶發 429 / 503 等可重試錯誤時自動指數退避重試，
+    不再讓單次上傳失敗直接讓整個 Job 以 exit code 1 結束。
+    """
     if not path.exists():
         return
     if storage_client is None:
         raise RuntimeError("storage_client 尚未建立，無法上傳 GCS")
 
     bucket = storage_client.bucket(GCS_BUCKET)
-    bucket.blob(blob_name).upload_from_filename(str(path))
+    bucket.blob(blob_name).upload_from_filename(str(path), retry=DEFAULT_RETRY)
     print(f"已上傳 GCS：{path}")
     print(f"GCS 位置：gs://{GCS_BUCKET}/{blob_name}")
 
@@ -736,6 +744,7 @@ def record_no_data(year: str, page: int, row_number: int, reason: str) -> None:
     這不是 failed：
     - 立即 append 到固定 status.csv。
     - 立即上傳 GCS，避免 Job 中斷時少歷史紀錄。
+      （一個年份最多觸發一次，頻率極低，不會撞 GCS 覆寫限制。）
     """
     status_row = {
         "執行批次ID": RUN_BATCH_ID,
@@ -756,12 +765,12 @@ def record_no_data(year: str, page: int, row_number: int, reason: str) -> None:
 
 
 # =========================================================
-# 11. failed 即時保存工具
+# 11. failed 保存工具
 # =========================================================
 
 
 def save_failed_csv(force_create_empty: bool = True) -> None:
-    """覆蓋寫入本次 01 的 failed.csv。"""
+    """覆蓋寫入本次 01 的 failed.csv（只寫 /tmp，不上傳）。"""
     if not failed_data and not force_create_empty:
         return
 
@@ -776,6 +785,7 @@ def initialize_failed_csv_for_new_run() -> None:
 
     這不會清空資料夾，也不會刪年度 raw / all_year / status。
     只會讓 failed.csv 從此刻起代表「本次 01 的失敗清單」。
+    這裡是整個 Job 唯一一次「啟動時」上傳 failed.csv，之後全部交給 checkpoint。
     """
     failed_data.clear()
     save_failed_csv(force_create_empty=True)
@@ -801,10 +811,19 @@ def record_failed(
     exception: Optional[BaseException] = None,
 ) -> None:
     """
-    記錄真正失敗，並立即覆蓋寫入 failed.csv + 上傳 GCS。
+    記錄真正失敗，並立即覆蓋寫入 /tmp 的 failed.csv。
 
     failed_data 是本次執行的累積清單，因此每次新失敗都會把「本次全部失敗」
     重寫回同一份固定 failed.csv。
+
+    注意：這裡「不」上傳 GCS。
+    GCS 同一 object 每秒最多約 1 次覆寫；當網站連續快速回非 2xx 時，
+    逐筆上傳會在幾秒內撞到 429 rateLimitExceeded，反而讓整個 Job 中斷。
+    GCS 上傳統一交給 save_everything() 的批次 checkpoint：
+    - 每 SAVE_EVERY_PAGES 頁
+    - 每個年份結束
+    - main() 的例外 / 中斷處理
+    最壞情況只會遺失最後不到 SAVE_EVERY_PAGES 頁的 failed 紀錄，02 仍可補漏。
     """
     failed_row = {
         "憑證發放年份": str(year),
@@ -837,9 +856,8 @@ def record_failed(
         print("例外：", type(exception).__name__, exception)
     print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
-    # Cloud Run 重要保護：失敗發生當下就保存與上傳。
+    # 只寫 /tmp；GCS 上傳交給 save_everything() 的批次 checkpoint。
     save_failed_csv(force_create_empty=True)
-    upload_file_to_gcs(FAILED_CSV_FILE, control_blob_name(FAILED_CSV_NAME))
 
 
 # =========================================================
@@ -1440,6 +1458,8 @@ def save_everything(current_year: Optional[str], upload: bool = True) -> None:
     3. 覆蓋寫入本次 failed.csv。
     4. status 已在 record_no_data 當下 append；這裡只確保存在時可一併上傳。
     5. upload=True 時，把 01 管理的檔案上傳 GCS。
+
+    這是 failed.csv 上傳 GCS 的唯一批次入口（啟動時的清空除外）。
     """
     if current_year:
         save_year_raw_csv(current_year)
@@ -1616,6 +1636,7 @@ def crawl_one_year(
                 time.sleep(DETAIL_API_SLEEP_SECONDS)
 
         # 每 N 頁持久化到 GCS，避免 Cloud Run 中斷時損失過多進度。
+        # failed.csv 也在這裡一併上傳（record_failed 本身不上傳）。
         if SAVE_EVERY_PAGES > 0 and page_number % SAVE_EVERY_PAGES == 0:
             print(f"\n年份 {year} 已完成第 {page_number} 頁，進行批次存檔與上傳")
             save_everything(current_year=year, upload=True)

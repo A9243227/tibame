@@ -14,7 +14,7 @@ T-REC 直轉供憑證成交紀錄：Cloud Run Playwright + API raw 爬蟲版
 8. 每 SAVE_EVERY_PAGES 頁保存年度 raw / all_year / status / failed，並上傳 GCS。
 9. 每一年結束一定再保存與上傳一次。
 10. failed.csv 使用固定檔名；每次 01 開始時清空成只有表頭，代表本次 01 的失敗清單。
-11. 發生真正失敗時，failed.csv 會立即寫入並上傳 GCS。
+11. 發生真正失敗時，failed.csv 只寫本機；由 checkpoint 統一上傳 GCS，避免 429。
 12. status.csv 使用固定檔名；遇到「目前沒有資料」時採 append，永久保留歷史紀錄。
 13. detail 的「成交記錄 <ol></ol> 空白」不是失敗，只代表該筆沒有成交記錄。
 14. 01 不做 retry；retry 交給 02。
@@ -58,6 +58,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from google.cloud import storage
+from google.cloud.storage.retry import DEFAULT_RETRY
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
@@ -399,7 +400,7 @@ def upload_file_to_gcs(path: Path) -> None:
     filename = path.name
     blob_name = build_gcs_blob_name(filename)
     bucket = storage_client.bucket(GCS_BUCKET)
-    bucket.blob(blob_name).upload_from_filename(str(path))
+    bucket.blob(blob_name).upload_from_filename(str(path), retry=DEFAULT_RETRY)
 
     print(f"已上傳 GCS：{path}")
     print(f"GCS 位置：gs://{GCS_BUCKET}/{blob_name}")
@@ -709,7 +710,7 @@ def record_failed(
     exception: Optional[BaseException] = None,
 ) -> None:
     """
-    記錄真正失敗，並立即覆蓋寫入 failed.csv + 上傳 GCS。
+    記錄真正失敗，覆蓋寫入本機 failed.csv（不逐筆上傳 GCS，改由 checkpoint 統一上傳）。
 
     failed_data 是本次執行的累積清單，因此每次新失敗都會把「本次全部失敗」
     重寫回同一份固定 failed.csv。
@@ -745,9 +746,10 @@ def record_failed(
         print("例外：", type(exception).__name__, exception)
     print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
-    # Cloud Run 重要保護：失敗發生當下就保存與上傳。
+    # 只寫本機 /tmp，不逐筆上傳 GCS：同一 failed.csv 每秒多次覆寫會觸發
+    # GCS 429 (object mutation rate limit)。failed.csv 改由 save_everything()
+    # 的 checkpoint（每 SAVE_EVERY_PAGES 頁 / 年度結束 / 例外）統一上傳。
     save_failed_csv(force_create_empty=True)
-    upload_file_to_gcs(FAILED_CSV_FILE)
 
 
 # =========================================================
